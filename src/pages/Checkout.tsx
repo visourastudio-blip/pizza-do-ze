@@ -48,11 +48,6 @@ const Checkout = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || !profile) {
-      toast.error('Erro ao identificar cliente. Faça login novamente.');
-      return;
-    }
-
     if (deliveryType === 'delivery') {
       if (!address.street || !address.number || !address.neighborhood || !address.cep) {
         toast.error('Preencha todos os campos do endereço');
@@ -65,12 +60,15 @@ const Checkout = () => {
       return;
     }
 
-    // If payment is PIX, open the modal - order will be created there
+    // If payment is PIX, open the modal instead of creating order directly
     if (paymentMethod === 'pix') {
-      if (deliveryType === 'delivery') {
-        await updateAddress(address);
-      }
       setShowPixModal(true);
+      return;
+    }
+
+    // For other payment methods, require user/profile
+    if (!user || !profile) {
+      toast.error('Erro ao identificar cliente');
       return;
     }
 
@@ -114,28 +112,6 @@ const Checkout = () => {
     }
     setIsProcessing(false);
   };
-
-  const handlePixSuccess = (orderId: string) => {
-    clearCart();
-    toast.success('Pagamento confirmado! Pedido enviado.');
-    navigate(`/pedido/${orderId}`);
-  };
-
-  const handlePixOrderCreated = (orderId: string, billingId: string) => {
-    console.log('Order created with PIX:', orderId, billingId);
-  };
-
-  // Prepare order data for PIX modal
-  const pixOrderData = user ? {
-    items: items.map(item => ({
-      ...item,
-      // Serialize item data
-    })),
-    deliveryType,
-    total,
-    userId: user.id,
-    change: paymentMethod === 'dinheiro' ? parseFloat(changeAmount) : undefined,
-  } : undefined;
 
   if (items.length === 0) {
     navigate('/carrinho');
@@ -414,12 +390,10 @@ const Checkout = () => {
           open={showPixModal}
           onOpenChange={setShowPixModal}
           amount={total}
-          onSuccess={handlePixSuccess}
-          onOrderCreated={handlePixOrderCreated}
+          onSuccess={processOrder}
           defaultName={profile?.name}
           defaultEmail={profile?.email}
           defaultPhone={profile?.phone || ''}
-          orderData={pixOrderData}
         />
       </div>
     </div>
